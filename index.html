@@ -22,7 +22,7 @@
     <div class="max-w-7xl mx-auto p-6">
         <header class="text-center mb-8">
             <div class="flex justify-center items-center gap-4">
-                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物即時追蹤</h1>
+                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物追蹤</h1>
                 <span class="text-sm text-slate-400 pt-3">By 利維坦 武惜肝 使用 Grok 整理</span>
             </div>
         </header>
@@ -60,7 +60,7 @@
         </div>
 
         <footer class="text-center text-xs opacity-50 mt-12">
-            只有時間 + 所選天氣都吻合才會亮起
+            已抓取的生物會自動排到最底下
         </footer>
     </div>
 
@@ -125,7 +125,7 @@
             return ["碧空", "晴朗", "陰雲", "小雨", "薄霧", "暴雨"][cycle];
         }
 
-        // 全面修正版：時間 + 天氣同時吻合才亮
+        // 全面修正：時間 + 天氣同時吻合才亮起
         function isCurrentlyAvailable(pet) {
             const etStr = getEorzeaTime();
             const hour = parseInt(etStr.split(':')[0]);
@@ -215,7 +215,7 @@
                         <div class="mt-4 pt-4 border-t border-slate-700">
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" ${isCap ? 'checked' : ''} onchange="toggleCaptured('${pet.id}')" class="w-4 h-4 accent-green-500">
-                                <span>已抓取過（不再置頂）</span>
+                                <span>已抓取過</span>
                             </label>
                         </div>
                     </div>
