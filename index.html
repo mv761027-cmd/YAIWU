@@ -22,7 +22,7 @@
     <div class="max-w-7xl mx-auto p-6">
         <header class="text-center mb-8">
             <div class="flex justify-center items-center gap-4">
-                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物追蹤</h1>
+                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物即時追蹤</h1>
                 <span class="text-sm text-slate-400 pt-3">By 利維坦 武惜肝 使用 Grok 整理</span>
             </div>
         </header>
@@ -60,7 +60,7 @@
         </div>
 
         <footer class="text-center text-xs opacity-50 mt-12">
-            已抓取的生物會自動排到最底下
+            已抓取的生物會排在最底下
         </footer>
     </div>
 
@@ -119,29 +119,18 @@
             return `${h}:${m}`;
         }
 
-        function getCurrentWeather() {
-            const h = parseInt(getEorzeaTime().split(':')[0]);
-            const cycle = Math.floor(h / 8) % 6;
-            return ["碧空", "晴朗", "陰雲", "小雨", "薄霧", "暴雨"][cycle];
-        }
-
-        // 全面修正：時間 + 天氣同時吻合才亮起
         function isCurrentlyAvailable(pet) {
             const etStr = getEorzeaTime();
             const hour = parseInt(etStr.split(':')[0]);
 
-            // 時間判斷
             let timeMatch = true;
             if (pet.time !== "全天") {
                 const [startStr, endStr] = pet.time.split('-');
                 const start = parseInt(startStr);
                 const end = parseInt(endStr);
-                timeMatch = (end > start) 
-                    ? (hour >= start && hour < end) 
-                    : (hour >= start || hour < end);
+                timeMatch = (end > start) ? (hour >= start && hour < end) : (hour >= start || hour < end);
             }
 
-            // 天氣嚴格判斷
             let weatherMatch = false;
             if (pet.weather === "任意") {
                 weatherMatch = true;
@@ -176,7 +165,6 @@
             document.getElementById('et-time').textContent = et;
             document.getElementById('local-time').textContent = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
 
-            // 天氣單選
             const filterHTML = weatherData.map(w => `
                 <label class="flex items-center gap-3 cursor-pointer hover:bg-slate-800 p-3 rounded-xl ${selectedWeather === w.name ? 'bg-slate-700 ring-2 ring-emerald-400' : ''}">
                     <img src="${w.icon}" class="weather-icon" alt="${w.name}">
@@ -187,11 +175,17 @@
             `).join('');
             document.getElementById('weather-filters').innerHTML = filterHTML;
 
+            // 排序：可抓取置頂 → 未抓取待機中 → 已抓取排最底
             const sortedPets = [...rarePets].sort((a, b) => {
                 const aAvail = isCurrentlyAvailable(a);
                 const bAvail = isCurrentlyAvailable(b);
-                if (aAvail !== bAvail) return bAvail - aAvail;
-                return !!captured[b.id] - !!captured[a.id];
+                if (aAvail !== bAvail) return bAvail - aAvail;   // 可抓取置頂
+
+                const aCap = !!captured[a.id];
+                const bCap = !!captured[b.id];
+                if (aCap !== bCap) return aCap - bCap;           // 已抓取排最下面
+
+                return 0;
             });
 
             document.getElementById('pet-list').innerHTML = sortedPets.map(pet => {
