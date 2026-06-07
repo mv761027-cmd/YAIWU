@@ -60,7 +60,7 @@
         </div>
 
         <footer class="text-center text-xs opacity-50 mt-12">
-            左側選擇天氣後，只顯示符合該天氣的生物
+            只有時間 + 所選天氣都吻合才會亮起
         </footer>
     </div>
 
@@ -125,14 +125,20 @@
             return ["碧空", "晴朗", "陰雲", "小雨", "薄霧", "暴雨"][cycle];
         }
 
-        // 嚴格修正版
-        function isCurrentlyAvailable(pet, currentET, currentWeather) {
+        // 全面修正版：時間 + 天氣同時吻合才亮
+        function isCurrentlyAvailable(pet) {
+            const etStr = getEorzeaTime();
+            const hour = parseInt(etStr.split(':')[0]);
+
             // 時間判斷
             let timeMatch = true;
             if (pet.time !== "全天") {
-                const hour = parseInt(currentET.split(':')[0]);
-                const [start, end] = pet.time.split('-').map(Number);
-                timeMatch = end > start ? (hour >= start && hour < end) : (hour >= start || hour < end);
+                const [startStr, endStr] = pet.time.split('-');
+                const start = parseInt(startStr);
+                const end = parseInt(endStr);
+                timeMatch = (end > start) 
+                    ? (hour >= start && hour < end) 
+                    : (hour >= start || hour < end);
             }
 
             // 天氣嚴格判斷
@@ -140,8 +146,6 @@
             if (pet.weather === "任意") {
                 weatherMatch = true;
             } else if (pet.weather === selectedWeather) {
-                weatherMatch = true;
-            } else if (pet.weather === "晴朗" && selectedWeather === "晴朗") {
                 weatherMatch = true;
             }
 
@@ -184,14 +188,14 @@
             document.getElementById('weather-filters').innerHTML = filterHTML;
 
             const sortedPets = [...rarePets].sort((a, b) => {
-                const aAvail = isCurrentlyAvailable(a, et, null);
-                const bAvail = isCurrentlyAvailable(b, et, null);
+                const aAvail = isCurrentlyAvailable(a);
+                const bAvail = isCurrentlyAvailable(b);
                 if (aAvail !== bAvail) return bAvail - aAvail;
                 return !!captured[b.id] - !!captured[a.id];
             });
 
             document.getElementById('pet-list').innerHTML = sortedPets.map(pet => {
-                const isActive = isCurrentlyAvailable(pet, et, null);
+                const isActive = isCurrentlyAvailable(pet);
                 const isCap = !!captured[pet.id];
                 const activeClass = isActive && !isCap ? 'pet-active' : 'pet-gray';
                 const sizeColor = pet.size === 'S' ? 'size-s' : pet.size === 'M' ? 'size-m' : 'size-l';
