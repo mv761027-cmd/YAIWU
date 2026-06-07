@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FF14 無名島 稀有生物即時追蹤</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #1e3a8a, #0f172a); }
+        .pet-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .pet-active { background-color: #166534 !important; border-color: #86efac !important; box-shadow: 0 0 20px #4ade80; }
+        .pet-gray { opacity: 0.65; filter: grayscale(60%); }
+        .captured { text-decoration: line-through; opacity: 0.4; }
+        .size-s { color: #60a5fa; }
+        .size-m { color: #facc15; }
+        .size-l { color: #f87171; }
+        .weather-icon { width: 48px; height: 48px; object-fit: contain; }
+    </style>
+</head>
+<body class="text-white min-h-screen pb-12">
+    <div class="max-w-7xl mx-auto p-6">
+        <header class="text-center mb-8">
+            <div class="flex justify-center items-center gap-4">
+                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物即時追蹤</h1>
+                <span class="text-sm text-slate-400 pt-3">By 利維坦 武惜肝 使用 Grok 整理</span>
+            </div>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- 左側 天氣單選 -->
+            <div class="lg:w-72 bg-slate-900/70 backdrop-blur rounded-2xl p-6 border border-blue-500/30 h-fit">
+                <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-cloud-sun"></i> 選擇天氣</h3>
+                <div id="weather-filters" class="space-y-4"></div>
+            </div>
+
+            <!-- 主要內容 -->
+            <div class="flex-1">
+                <div class="bg-slate-900/70 backdrop-blur rounded-2xl p-6 mb-8 text-center border border-blue-500/30">
+                    <div class="grid grid-cols-2 gap-8">
+                        <div>
+                            <p class="text-sm opacity-70">艾歐澤亞時間 (ET)</p>
+                            <p id="et-time" class="text-5xl font-mono font-bold text-yellow-400">00:00</p>
+                        </div>
+                        <div>
+                            <p class="text-sm opacity-70">現實時間</p>
+                            <p id="local-time" class="text-3xl font-mono"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/70 backdrop-blur rounded-2xl p-8 border border-amber-500/30">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl flex items-center gap-3"><i class="fas fa-paw"></i> 限時稀有生物列表</h2>
+                        <button onclick="resetCaptured()" class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg">重置已抓取</button>
+                    </div>
+                    <div id="pet-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center text-xs opacity-50 mt-12">
+            左側選擇天氣後，只顯示符合該天氣的生物
+        </footer>
+    </div>
+
+    <script>
+        const rarePets = [
+            { id: "black_sheep", name: "黑羊", time: "全天", weather: "晴朗", size: "S" },
+            { id: "lemur", name: "狐猴", time: "06:00-09:00", weather: "任意", size: "S" },
+            { id: "magic_mushroom", name: "魔菇", time: "15:00-18:00", weather: "小雨", size: "S" },
+            { id: "star_marmot", name: "星點栗鼠", time: "09:00-12:00", weather: "任意", size: "S" },
+            { id: "beachcomb", name: "沙灘殼蟹", time: "00:00-03:00", weather: "小雨", size: "S" },
+            { id: "shimmering", name: "闪烁毛球", time: "18:00-21:00", weather: "薄霧", size: "S" },
+            { id: "paradise_apkallu", name: "樂園碧企鵝", time: "12:00-15:00", weather: "任意", size: "S" },
+            { id: "yellow_coblyn", name: "黃色礦爬蟲", time: "全天", weather: "薄霧", size: "S" },
+            { id: "magic_flower_bud", name: "魔界花骨朵", time: "03:00-06:00", weather: "陰雲", size: "S" },
+            { id: "amethyst_spriggan", name: "紫晶魔石精", time: "21:00-24:00", weather: "任意", size: "S" },
+
+            { id: "glyptodon", name: "雕齒獸", time: "00:00-03:00", weather: "任意", size: "M" },
+            { id: "monkey_finch", name: "猴面雀", time: "12:00-15:00", weather: "晴朗", size: "M" },
+            { id: "paradise_tiger", name: "樂園虎", time: "18:00-21:00", weather: "晴朗", size: "M" },
+            { id: "black_chocobo", name: "黑陸行鳥", time: "全天", weather: "碧空", size: "M" },
+            { id: "paradise_dodo", name: "樂園渡渡鳥", time: "15:00-18:00", weather: "任意", size: "M" },
+            { id: "white_stag", name: "島嶼雄羚羊", time: "18:00-21:00", weather: "任意", size: "M" },
+            { id: "alcinoe", name: "阿爾科諾斯特", time: "21:00-24:00", weather: "碧空", size: "M" },
+
+            { id: "griffin", name: "獅鷲", time: "15:00-18:00", weather: "碧空", size: "L" },
+            { id: "grand_buffalo", name: "巨水牛", time: "全天", weather: "陰雲", size: "L" },
+            { id: "alligator", name: "短吻鱷", time: "06:00-09:00", weather: "暴雨", size: "L" },
+            { id: "magic_flower", name: "魔界花", time: "21:00-24:00", weather: "暴雨", size: "L" },
+            { id: "golden_tortoise", name: "精金龜", time: "12:00-15:00", weather: "薄霧", size: "L" },
+            { id: "ancient_ape", name: "古菩猩猩", time: "09:00-12:00", weather: "陰雲", size: "L" },
+            { id: "paradise_boar", name: "樂園疣猪", time: "全天", weather: "暴雨", size: "L" },
+            { id: "wingless_dragon", name: "無齒翼龍", time: "09:00-12:00", weather: "碧空", size: "L" },
+            { id: "giant_rock_beetle", name: "巨礦妖蟲", time: "03:00-06:00", weather: "晴朗", size: "L" },
+            { id: "island_billy", name: "島嶼公山羊", time: "03:00-06:00", weather: "任意", size: "L" },
+            { id: "gold_back", name: "黃金背魔鳥", time: "全天", weather: "小雨", size: "L" },
+            { id: "strange_spriggan", name: "古怪魔石精", time: "00:00-03:00", weather: "薄霧", size: "L" }
+        ];
+
+        const weatherData = [
+            { name: "碧空", icon: "碧空.png" },
+            { name: "晴朗", icon: "晴朗.png" },
+            { name: "陰雲", icon: "陰雲.png" },
+            { name: "小雨", icon: "小雨.png" },
+            { name: "薄霧", icon: "薄霧.png" },
+            { name: "暴雨", icon: "暴雨.png" }
+        ];
+
+        let selectedWeather = "晴朗";
+        let captured = JSON.parse(localStorage.getItem('ff14_island_captured') || '{}');
+
+        function getEorzeaTime() {
+            const now = Date.now();
+            const etDate = new Date(Math.floor(now * 20.57142857));
+            const h = etDate.getUTCHours().toString().padStart(2, '0');
+            const m = etDate.getUTCMinutes().toString().padStart(2, '0');
+            return `${h}:${m}`;
+        }
+
+        function getCurrentWeather() {
+            const h = parseInt(getEorzeaTime().split(':')[0]);
+            const cycle = Math.floor(h / 8) % 6;
+            return ["碧空", "晴朗", "陰雲", "小雨", "薄霧", "暴雨"][cycle];
+        }
+
+        // 嚴格修正版
+        function isCurrentlyAvailable(pet, currentET, currentWeather) {
+            // 時間判斷
+            let timeMatch = true;
+            if (pet.time !== "全天") {
+                const hour = parseInt(currentET.split(':')[0]);
+                const [start, end] = pet.time.split('-').map(Number);
+                timeMatch = end > start ? (hour >= start && hour < end) : (hour >= start || hour < end);
+            }
+
+            // 天氣嚴格判斷
+            let weatherMatch = false;
+            if (pet.weather === "任意") {
+                weatherMatch = true;
+            } else if (pet.weather === selectedWeather) {
+                weatherMatch = true;
+            } else if (pet.weather === "晴朗" && selectedWeather === "晴朗") {
+                weatherMatch = true;
+            }
+
+            return timeMatch && weatherMatch;
+        }
+
+        function selectWeather(w) {
+            selectedWeather = w;
+            updateUI();
+        }
+
+        function toggleCaptured(id) {
+            captured[id] = !captured[id];
+            localStorage.setItem('ff14_island_captured', JSON.stringify(captured));
+            updateUI();
+        }
+
+        function resetCaptured() {
+            if (confirm('確定重置所有已抓取記錄？')) {
+                captured = {};
+                localStorage.removeItem('ff14_island_captured');
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            const et = getEorzeaTime();
+            document.getElementById('et-time').textContent = et;
+            document.getElementById('local-time').textContent = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
+
+            // 天氣單選
+            const filterHTML = weatherData.map(w => `
+                <label class="flex items-center gap-3 cursor-pointer hover:bg-slate-800 p-3 rounded-xl ${selectedWeather === w.name ? 'bg-slate-700 ring-2 ring-emerald-400' : ''}">
+                    <img src="${w.icon}" class="weather-icon" alt="${w.name}">
+                    <input type="radio" name="weather" ${selectedWeather === w.name ? 'checked' : ''} 
+                           onchange="selectWeather('${w.name}')" class="w-5 h-5 accent-emerald-500">
+                    <span class="font-medium">${w.name}</span>
+                </label>
+            `).join('');
+            document.getElementById('weather-filters').innerHTML = filterHTML;
+
+            const sortedPets = [...rarePets].sort((a, b) => {
+                const aAvail = isCurrentlyAvailable(a, et, null);
+                const bAvail = isCurrentlyAvailable(b, et, null);
+                if (aAvail !== bAvail) return bAvail - aAvail;
+                return !!captured[b.id] - !!captured[a.id];
+            });
+
+            document.getElementById('pet-list').innerHTML = sortedPets.map(pet => {
+                const isActive = isCurrentlyAvailable(pet, et, null);
+                const isCap = !!captured[pet.id];
+                const activeClass = isActive && !isCap ? 'pet-active' : 'pet-gray';
+                const sizeColor = pet.size === 'S' ? 'size-s' : pet.size === 'M' ? 'size-m' : 'size-l';
+
+                return `
+                    <div class="pet-card bg-slate-800/70 rounded-2xl p-6 ${activeClass} border flex flex-col">
+                        <div class="flex justify-between items-start">
+                            <div class="${isCap ? 'captured' : ''}">
+                                <p class="font-bold text-xl ${isActive && !isCap ? 'text-green-400' : ''}">${pet.name}</p>
+                                <p class="text-amber-400 text-sm">${pet.time} (${pet.weather})</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="inline-block bg-slate-700 px-3 py-1 rounded-full text-sm ${sizeColor}">${pet.size}</span>
+                                <p class="text-xs mt-2 ${isActive && !isCap ? 'text-green-400' : 'text-slate-400'}">${isActive ? '● 現在可抓' : '待機中'}</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-slate-700">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                                <input type="checkbox" ${isCap ? 'checked' : ''} onchange="toggleCaptured('${pet.id}')" class="w-4 h-4 accent-green-500">
+                                <span>已抓取過（不再置頂）</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        setInterval(updateUI, 3000);
+        updateUI();
+    </script>
+</body>
+</html>
