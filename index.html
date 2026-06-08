@@ -15,52 +15,47 @@
         .size-s { color: #60a5fa; }
         .size-m { color: #facc15; }
         .size-l { color: #f87171; }
-        .weather-icon { width: 48px; height: 48px; object-fit: contain; }
     </style>
 </head>
 <body class="text-white min-h-screen pb-12">
     <div class="max-w-7xl mx-auto p-6">
         <header class="text-center mb-8">
             <div class="flex justify-center items-center gap-4">
-                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物即時追蹤</h1>
+                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物追蹤</h1>
                 <span class="text-sm text-slate-400 pt-3">By 利維坦 武惜肝 使用 Grok 整理</span>
             </div>
         </header>
 
-        <div class="flex flex-col lg:flex-row gap-6">
-            <!-- 左側 天氣單選 -->
-            <div class="lg:w-72 bg-slate-900/70 backdrop-blur rounded-2xl p-6 border border-blue-500/30 h-fit">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-cloud-sun"></i> 選擇天氣</h3>
-                <div id="weather-filters" class="space-y-4"></div>
+        <div class="flex-1">
+            <!-- babelin 風格頂部資訊 -->
+            <div class="bg-slate-900/70 backdrop-blur rounded-2xl p-6 mb-8 border border-emerald-500/30">
+                <div class="grid grid-cols-3 gap-6 text-center">
+                    <div>
+                        <p class="text-sm opacity-70">現實時間</p>
+                        <p id="local-time" class="text-3xl font-mono font-bold"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm opacity-70">艾歐澤亞時間 (ET)</p>
+                        <p id="et-time" class="text-5xl font-mono font-bold text-yellow-400"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm opacity-70">無名島天氣</p>
+                        <p id="current-weather" class="text-3xl font-mono flex items-center justify-center gap-2"></p>
+                    </div>
+                </div>
             </div>
 
-            <!-- 主要內容 -->
-            <div class="flex-1">
-                <div class="bg-slate-900/70 backdrop-blur rounded-2xl p-6 mb-8 text-center border border-blue-500/30">
-                    <div class="grid grid-cols-2 gap-8">
-                        <div>
-                            <p class="text-sm opacity-70">艾歐澤亞時間 (ET)</p>
-                            <p id="et-time" class="text-5xl font-mono font-bold text-yellow-400">00:00</p>
-                        </div>
-                        <div>
-                            <p class="text-sm opacity-70">現實時間</p>
-                            <p id="local-time" class="text-3xl font-mono"></p>
-                        </div>
-                    </div>
+            <div class="bg-slate-900/70 backdrop-blur rounded-2xl p-8 border border-amber-500/30">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl flex items-center gap-3"><i class="fas fa-paw"></i> 限時稀有生物列表</h2>
+                    <button onclick="resetCaptured()" class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg">重置已抓取</button>
                 </div>
-
-                <div class="bg-slate-900/70 backdrop-blur rounded-2xl p-8 border border-amber-500/30">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl flex items-center gap-3"><i class="fas fa-paw"></i> 限時稀有生物列表</h2>
-                        <button onclick="resetCaptured()" class="text-sm bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg">重置已抓取</button>
-                    </div>
-                    <div id="pet-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-                </div>
+                <div id="pet-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </div>
         </div>
 
         <footer class="text-center text-xs opacity-50 mt-12">
-            已抓取的生物會排在最底下
+            已抓取的生物會自動排到最底下 | 符合當前 ET 時間與天氣才會亮起
         </footer>
     </div>
 
@@ -99,16 +94,6 @@
             { id: "strange_spriggan", name: "古怪魔石精", time: "00:00-03:00", weather: "薄霧", size: "L" }
         ];
 
-        const weatherData = [
-            { name: "碧空", icon: "碧空.png" },
-            { name: "晴朗", icon: "晴朗.png" },
-            { name: "陰雲", icon: "陰雲.png" },
-            { name: "小雨", icon: "小雨.png" },
-            { name: "薄霧", icon: "薄霧.png" },
-            { name: "暴雨", icon: "暴雨.png" }
-        ];
-
-        let selectedWeather = "晴朗";
         let captured = JSON.parse(localStorage.getItem('ff14_island_captured') || '{}');
 
         function getEorzeaTime() {
@@ -119,10 +104,29 @@
             return `${h}:${m}`;
         }
 
+        function getCurrentWeather() {
+            const unixSeconds = Math.floor(Date.now() / 1000);
+            const bell = unixSeconds / 175;
+            const increment = (Math.floor(bell) + 8 - (Math.floor(bell) % 8)) % 24;
+            const totalDays = Math.floor(unixSeconds / 4200);
+            const calcBase = totalDays * 100 + increment;
+            const step1 = ((calcBase << 11) ^ calcBase) >>> 0;
+            const step2 = ((step1 >>> 8) ^ step1) >>> 0;
+            const chance = step2 % 100;
+
+            if (chance < 25) return "碧空";
+            else if (chance < 70) return "晴朗";
+            else if (chance < 80) return "陰雲";
+            else if (chance < 90) return "小雨";
+            else if (chance < 95) return "薄霧";
+            else return "暴雨";
+        }
+
         function isCurrentlyAvailable(pet) {
             const etStr = getEorzeaTime();
             const hour = parseInt(etStr.split(':')[0]);
 
+            // 時間符合
             let timeMatch = true;
             if (pet.time !== "全天") {
                 const [startStr, endStr] = pet.time.split('-');
@@ -131,19 +135,11 @@
                 timeMatch = (end > start) ? (hour >= start && hour < end) : (hour >= start || hour < end);
             }
 
-            let weatherMatch = false;
-            if (pet.weather === "任意") {
-                weatherMatch = true;
-            } else if (pet.weather === selectedWeather) {
-                weatherMatch = true;
-            }
+            // 天氣符合（使用真實當前天氣）
+            const currentWeather = getCurrentWeather();
+            let weatherMatch = (pet.weather === "任意") || (pet.weather === currentWeather);
 
             return timeMatch && weatherMatch;
-        }
-
-        function selectWeather(w) {
-            selectedWeather = w;
-            updateUI();
         }
 
         function toggleCaptured(id) {
@@ -162,28 +158,29 @@
 
         function updateUI() {
             const et = getEorzeaTime();
+            const currentWeather = getCurrentWeather();
+
             document.getElementById('et-time').textContent = et;
             document.getElementById('local-time').textContent = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
 
-            const filterHTML = weatherData.map(w => `
-                <label class="flex items-center gap-3 cursor-pointer hover:bg-slate-800 p-3 rounded-xl ${selectedWeather === w.name ? 'bg-slate-700 ring-2 ring-emerald-400' : ''}">
-                    <img src="${w.icon}" class="weather-icon" alt="${w.name}">
-                    <input type="radio" name="weather" ${selectedWeather === w.name ? 'checked' : ''} 
-                           onchange="selectWeather('${w.name}')" class="w-5 h-5 accent-emerald-500">
-                    <span class="font-medium">${w.name}</span>
-                </label>
-            `).join('');
-            document.getElementById('weather-filters').innerHTML = filterHTML;
+            // 頂部天氣顯示
+            const weatherIconMap = {
+                "碧空": "☀️", "晴朗": "🌤️", "陰雲": "☁️",
+                "小雨": "🌧️", "薄霧": "🌫️", "暴雨": "⛈️"
+            };
+            document.getElementById('current-weather').innerHTML = `
+                ${weatherIconMap[currentWeather] || '🌤️'} <span class="font-bold">${currentWeather}</span>
+            `;
 
-            // 排序：可抓取置頂 → 未抓取待機中 → 已抓取排最底
+            // 排序：可抓取置頂 → 已抓取最底
             const sortedPets = [...rarePets].sort((a, b) => {
                 const aAvail = isCurrentlyAvailable(a);
                 const bAvail = isCurrentlyAvailable(b);
-                if (aAvail !== bAvail) return bAvail - aAvail;   // 可抓取置頂
+                if (aAvail !== bAvail) return bAvail - aAvail;
 
                 const aCap = !!captured[a.id];
                 const bCap = !!captured[b.id];
-                if (aCap !== bCap) return aCap - bCap;           // 已抓取排最下面
+                if (aCap !== bCap) return aCap - bCap;
 
                 return 0;
             });
