@@ -105,7 +105,7 @@
             { id: "strange_spriggan", name: "古怪魔石精", time: "00:00-03:00", weather: "薄霧", size: "L" }
         ];
 
-        // 地圖對應表 (檔名必須與 attachments 資料夾一致)
+        // 地圖對應表（已修正檔名）
         const mapImages = {
             "black_sheep": "黑羊.png",
             "lemur": "狐猴.png",
@@ -113,7 +113,7 @@
             "star_marmot": "星點栗鼠.png",
             "beachcomb": "沙灘殼蟹.png",
             "shimmering": "閃爍毛球.png",
-            "paradise_apkallu": "樂園碧企鹅.png",
+            "paradise_apkallu": "樂園碧企鵝.png",     // ← 已修正為正確繁體檔名
             "yellow_coblyn": "黄色矿爬虫.png",
             "magic_flower_bud": "魔界花骨朵.png",
             "amethyst_spriggan": "紫晶魔石精.png",
@@ -239,7 +239,6 @@
 
                 let nameHTML = `<p class="font-bold text-xl ${isActive && !isCap ? 'text-green-400' : ''}">${pet.name}</p>`;
                 
-                // 有地圖的生物加上 📍 點擊功能
                 if (mapImages[pet.id]) {
                     nameHTML = `
                         <div class="flex items-center gap-2">
