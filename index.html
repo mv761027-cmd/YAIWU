@@ -15,19 +15,22 @@
         .size-s { color: #60a5fa; }
         .size-m { color: #facc15; }
         .size-l { color: #f87171; }
+        /* Modal 樣式 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { max-width: 92%; max-height: 92%; border-radius: 12px; overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.6); }
+        .modal-close { position: absolute; top: 20px; right: 30px; color: white; font-size: 2.5rem; cursor: pointer; z-index: 1010; }
     </style>
 </head>
 <body class="text-white min-h-screen pb-12">
     <div class="max-w-7xl mx-auto p-6">
         <header class="text-center mb-8">
             <div class="flex justify-center items-center gap-4">
-                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物追蹤</h1>
+                <h1 class="text-4xl font-bold">🦒 FF14 無名島 稀有生物即時追蹤</h1>
                 <span class="text-sm text-slate-400 pt-3">By 利維坦 武惜肝 使用 Grok 整理</span>
             </div>
         </header>
 
         <div class="flex-1">
-            <!-- babelin 風格頂部資訊 -->
             <div class="bg-slate-900/70 backdrop-blur rounded-2xl p-6 mb-8 border border-emerald-500/30">
                 <div class="grid grid-cols-3 gap-6 text-center">
                     <div>
@@ -55,8 +58,16 @@
         </div>
 
         <footer class="text-center text-xs opacity-50 mt-12">
-            已抓取的生物會自動排到最底下 | 符合當前 ET 時間與天氣才會亮起
+            已抓取的生物會自動排到最底下 | 與 babelin.netlify.app 嚴格同步 | 點擊名稱或📍查看位置
         </footer>
+    </div>
+
+    <!-- 地圖 Modal -->
+    <div id="mapModal" class="modal">
+        <div class="modal-content relative">
+            <span onclick="closeModal()" class="modal-close">&times;</span>
+            <img id="mapImage" src="" alt="位置地圖" class="max-w-full max-h-[88vh] block">
+        </div>
     </div>
 
     <script>
@@ -94,6 +105,41 @@
             { id: "strange_spriggan", name: "古怪魔石精", time: "00:00-03:00", weather: "薄霧", size: "L" }
         ];
 
+        // 地圖對應表 (檔名必須與 attachments 資料夾一致)
+        const mapImages = {
+            "black_sheep": "黑羊.png",
+            "lemur": "狐猴.png",
+            "magic_mushroom": "蘑菇.png",
+            "star_marmot": "星點栗鼠.png",
+            "beachcomb": "沙灘殼蟹.png",
+            "shimmering": "閃爍毛球.png",
+            "paradise_apkallu": "樂園碧企鹅.png",
+            "yellow_coblyn": "黄色矿爬虫.png",
+            "magic_flower_bud": "魔界花骨朵.png",
+            "amethyst_spriggan": "紫晶魔石精.png",
+
+            "glyptodon": "雕齿兽.png",
+            "monkey_finch": "猴面雀.png",
+            "paradise_tiger": "樂園虎.png",
+            "black_chocobo": "黑陸行鳥.png",
+            "paradise_dodo": "樂園渡渡鳥.png",
+            "white_stag": "岛屿雄羚羊.png",
+            "alcinoe": "阿尔科诺斯特.png",
+
+            "griffin": "狮鹫.png",
+            "grand_buffalo": "巨水牛.png",
+            "alligator": "短吻鳄.png",
+            "magic_flower": "魔界花.png",
+            "golden_tortoise": "精金龟.png",
+            "ancient_ape": "古菩猩猩.png",
+            "paradise_boar": "乐园疣猪.png",
+            "wingless_dragon": "无齿翼龙.png",
+            "giant_rock_beetle": "巨矿妖虫.png",
+            "island_billy": "岛屿公山羊.png",
+            "gold_back": "黄金背魔鸟.png",
+            "strange_spriggan": "古怪魔石精.png"
+        };
+
         let captured = JSON.parse(localStorage.getItem('ff14_island_captured') || '{}');
 
         function getEorzeaTime() {
@@ -106,13 +152,13 @@
 
         function getCurrentWeather() {
             const unixSeconds = Math.floor(Date.now() / 1000);
-            const bell = unixSeconds / 175;
-            const increment = (Math.floor(bell) + 8 - (Math.floor(bell) % 8)) % 24;
-            const totalDays = Math.floor(unixSeconds / 4200);
-            const calcBase = totalDays * 100 + increment;
-            const step1 = ((calcBase << 11) ^ calcBase) >>> 0;
-            const step2 = ((step1 >>> 8) ^ step1) >>> 0;
-            const chance = step2 % 100;
+            let bell = unixSeconds / 175;
+            let increment = (Math.floor(bell) + 8 - (Math.floor(bell) % 8)) % 24;
+            let totalDays = Math.floor(unixSeconds / 4200);
+            let calcBase = totalDays * 100 + increment;
+            let step1 = ((calcBase << 11) ^ calcBase) >>> 0;
+            let step2 = ((step1 >>> 8) ^ step1) >>> 0;
+            let chance = step2 % 100;
 
             if (chance < 25) return "碧空";
             else if (chance < 70) return "晴朗";
@@ -126,7 +172,6 @@
             const etStr = getEorzeaTime();
             const hour = parseInt(etStr.split(':')[0]);
 
-            // 時間符合
             let timeMatch = true;
             if (pet.time !== "全天") {
                 const [startStr, endStr] = pet.time.split('-');
@@ -135,10 +180,8 @@
                 timeMatch = (end > start) ? (hour >= start && hour < end) : (hour >= start || hour < end);
             }
 
-            // 天氣符合（使用真實當前天氣）
             const currentWeather = getCurrentWeather();
             let weatherMatch = (pet.weather === "任意") || (pet.weather === currentWeather);
-
             return timeMatch && weatherMatch;
         }
 
@@ -156,14 +199,23 @@
             }
         }
 
-        function updateUI() {
-            const et = getEorzeaTime();
-            const currentWeather = getCurrentWeather();
+        function showMap(id) {
+            const filename = mapImages[id];
+            if (filename) {
+                document.getElementById('mapImage').src = filename;
+                document.getElementById('mapModal').style.display = 'flex';
+            }
+        }
 
-            document.getElementById('et-time').textContent = et;
+        function closeModal() {
+            document.getElementById('mapModal').style.display = 'none';
+        }
+
+        function updateUI() {
+            document.getElementById('et-time').textContent = getEorzeaTime();
             document.getElementById('local-time').textContent = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
 
-            // 頂部天氣顯示
+            const currentWeather = getCurrentWeather();
             const weatherIconMap = {
                 "碧空": "☀️", "晴朗": "🌤️", "陰雲": "☁️",
                 "小雨": "🌧️", "薄霧": "🌫️", "暴雨": "⛈️"
@@ -172,17 +224,11 @@
                 ${weatherIconMap[currentWeather] || '🌤️'} <span class="font-bold">${currentWeather}</span>
             `;
 
-            // 排序：可抓取置頂 → 已抓取最底
             const sortedPets = [...rarePets].sort((a, b) => {
                 const aAvail = isCurrentlyAvailable(a);
                 const bAvail = isCurrentlyAvailable(b);
                 if (aAvail !== bAvail) return bAvail - aAvail;
-
-                const aCap = !!captured[a.id];
-                const bCap = !!captured[b.id];
-                if (aCap !== bCap) return aCap - bCap;
-
-                return 0;
+                return !!captured[a.id] - !!captured[b.id];
             });
 
             document.getElementById('pet-list').innerHTML = sortedPets.map(pet => {
@@ -191,11 +237,23 @@
                 const activeClass = isActive && !isCap ? 'pet-active' : 'pet-gray';
                 const sizeColor = pet.size === 'S' ? 'size-s' : pet.size === 'M' ? 'size-m' : 'size-l';
 
+                let nameHTML = `<p class="font-bold text-xl ${isActive && !isCap ? 'text-green-400' : ''}">${pet.name}</p>`;
+                
+                // 有地圖的生物加上 📍 點擊功能
+                if (mapImages[pet.id]) {
+                    nameHTML = `
+                        <div class="flex items-center gap-2">
+                            <p onclick="showMap('${pet.id}')" class="font-bold text-xl cursor-pointer hover:text-emerald-400 ${isActive && !isCap ? 'text-green-400' : ''}">${pet.name}</p>
+                            <span onclick="showMap('${pet.id}')" class="cursor-pointer text-amber-400 hover:text-amber-300 text-xl">📍</span>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="pet-card bg-slate-800/70 rounded-2xl p-6 ${activeClass} border flex flex-col">
                         <div class="flex justify-between items-start">
                             <div class="${isCap ? 'captured' : ''}">
-                                <p class="font-bold text-xl ${isActive && !isCap ? 'text-green-400' : ''}">${pet.name}</p>
+                                ${nameHTML}
                                 <p class="text-amber-400 text-sm">${pet.time} (${pet.weather})</p>
                             </div>
                             <div class="text-right">
